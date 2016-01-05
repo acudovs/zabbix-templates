@@ -1,0 +1,35 @@
+#!/usr/bin/python
+
+__author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
+__date__ = '3 Jan 2016'
+__version__ = '1.0.0'
+
+
+import json
+import os
+
+
+DISKSTATS='/proc/diskstats'
+
+
+def main():
+    discovery = {'data': []}
+    try:
+        data = []
+        with open(DISKSTATS, 'r') as diskstats:
+            for line in diskstats.readlines():
+                columns = line.split()
+                if len(columns) != 14 or columns[3] == columns[4] == '0':
+                    continue
+                item = {'{#DISK_MAJOR}': columns[0],
+                        '{#DISK_MINOR}': columns[1],
+                        '{#DISK_NAME}': columns[2]}
+                data.append(item)
+        discovery['data'] = data
+    except Exception:
+        pass
+    print json.dumps(discovery, separators=(',', ':'))
+
+
+if __name__ == '__main__':
+    main()
