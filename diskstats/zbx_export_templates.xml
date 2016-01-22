@@ -48,7 +48,7 @@
                     <publickey/>
                     <privatekey/>
                     <port/>
-                    <filter>{#DISK_NAME}:^(sd[a-z]+|vd[a-z]+)$</filter>
+                    <filter>{#DISK_NAME}:^(sd[a-z]+|vd[a-z]+|xvd[a-z]+)$</filter>
                     <lifetime>3</lifetime>
                     <description>Discovery of diskstats devices.</description>
                     <item_prototypes>

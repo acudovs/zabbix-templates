@@ -1,13 +1,10 @@
 #!/usr/bin/python
 
-__author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
-__date__ = '3 Jan 2016'
-__version__ = '1.0.0'
-
-
 import json
-import os
 
+__author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
+__date__ = '22 Jan 2016'
+__version__ = '1.0.1'
 
 DISKSTATS='/proc/diskstats'
 
@@ -28,6 +25,7 @@ def main():
         discovery['data'] = data
     except Exception:
         pass
+
     print json.dumps(discovery, separators=(',', ':'))
 
 
