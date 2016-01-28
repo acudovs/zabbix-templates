@@ -1,0 +1,96 @@
+#!/usr/bin/python
+
+import argparse
+import json
+
+__author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
+__date__ = '8 Dec 2015'
+__version__ = '1.0.2'
+
+
+class DRBD(object):
+
+    DRBD_STATUS = '/proc/drbd'
+    DRBD_STATUS_CONN = 1
+    DRBD_STATUS_ROLE = 2
+    DRBD_STATUS_DISK = 3
+
+    @classmethod
+    def discovery(cls, args):
+        discovery = {'data': []}
+        try:
+            data = []
+            with open(cls.DRBD_STATUS, 'r') as drbd_status_file:
+                for line in drbd_status_file:
+                    words = line.split()
+                    if len(words) == 6 and words[0][:-1].isdigit():
+                        item = {'{#DRBD_MINOR}': words[0][:-1]}
+                        data.append(item)
+            discovery['data'] = data
+        except Exception:
+            if args.debug:
+                raise
+        return json.dumps(discovery, separators=(',', ':'))
+
+    @classmethod
+    def get_status(cls, args, position):
+        status = 'Cannot get status'
+        try:
+            with open(cls.DRBD_STATUS, 'r') as drbd_status_file:
+                for line in drbd_status_file:
+                    words = line.split()
+                    if len(words) == 6 and words[0][:-1] == args.drbd_minor:
+                        status = words[position][3:]
+        except:
+            if args.debug:
+                raise
+        return status
+
+    @classmethod
+    def conn(cls, args):
+        return cls.get_status(args, cls.DRBD_STATUS_CONN)
+
+    @classmethod
+    def role(cls, args):
+        return cls.get_status(args, cls.DRBD_STATUS_ROLE)
+
+    @classmethod
+    def disk(cls, args):
+        return cls.get_status(args, cls.DRBD_STATUS_DISK)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d', '--debug', action='store_true')
+    subparsers = parser.add_subparsers()
+
+    subparser = subparsers.add_parser('discovery')
+    subparser.set_defaults(func=DRBD.discovery)
+
+    subparser = subparsers.add_parser('conn')
+    subparser.add_argument('drbd_minor')
+    subparser.set_defaults(func=DRBD.conn)
+
+    subparser = subparsers.add_parser('disk')
+    subparser.add_argument('drbd_minor')
+    subparser.set_defaults(func=DRBD.disk)
+
+    subparser = subparsers.add_parser('role')
+    subparser.add_argument('drbd_minor')
+    subparser.set_defaults(func=DRBD.role)
+
+    return parser.parse_known_args()[0]
+
+
+def main():
+    try:
+        args = parse_args()
+        print(args.func(args))
+    except Exception as e:
+        if args.debug:
+            raise
+        print(e)
+
+
+if __name__ == '__main__':
+    main()
