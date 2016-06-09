@@ -5,8 +5,8 @@ import json
 import subprocess
 
 __author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
-__date__ = '8 Dec 2015'
-__version__ = '1.0.2'
+__date__ = '4 Jun 2016'
+__version__ = '1.0.3'
 
 
 class Pacemaker(object):
@@ -21,12 +21,12 @@ class Pacemaker(object):
             command = [cls.CRM_RESOURCE, '-l']
             output = subprocess.check_output(command, stderr=subprocess.STDOUT)
             for line in output.splitlines():
-               item = {'{#CRM_RESOURCE}': line}
-               data.append(item)
+                item = {'{#CRM_RESOURCE}': line}
+                data.append(item)
             discovery['data'] = data
-        except Exception:
+        except Exception as e:
             if args.debug:
-                raise
+                raise e
         return json.dumps(discovery, separators=(',', ':'))
 
     @classmethod
@@ -36,34 +36,35 @@ class Pacemaker(object):
             command = [cls.CRM_RESOURCE, '-r', args.crm_resource, '-W']
             output = subprocess.check_output(command, stderr=subprocess.STDOUT)
             location = output.splitlines()[0]
-        except:
+        except Exception as e:
             if args.debug:
-                raise
+                raise e
         return location
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--debug', action='store_true')
+
     subparsers = parser.add_subparsers()
 
-    subparser = subparsers.add_parser('discovery')
-    subparser.set_defaults(func=Pacemaker.discovery)
+    subparser_a = subparsers.add_parser('discovery')
+    subparser_a.set_defaults(func=Pacemaker.discovery)
 
-    subparser = subparsers.add_parser('location')
-    subparser.add_argument('crm_resource')
-    subparser.set_defaults(func=Pacemaker.location)
+    subparser_b = subparsers.add_parser('location')
+    subparser_b.add_argument('crm_resource')
+    subparser_b.set_defaults(func=Pacemaker.location)
 
     return parser.parse_known_args()[0]
 
 
 def main():
+    args = parse_args()
     try:
-        args = parse_args()
         print(args.func(args))
     except Exception as e:
         if args.debug:
-            raise
+            raise e
         print(e)
 
 
