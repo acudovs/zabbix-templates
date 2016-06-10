@@ -1,0 +1,83 @@
+#!/usr/bin/python
+
+import argparse
+import json
+import os
+import subprocess
+
+__author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
+__date__ = '1 Jan 2016'
+__version__ = '1.0.0'
+
+
+class CCISS(object):
+
+    CCISS_VOL_STATUS = '/usr/bin/cciss_vol_status'
+    DEVICES = [('HP', 'LOGICAL VOLUME')]
+    SYSFS_SCSI = '/sys/bus/scsi/devices'
+
+    @classmethod
+    def discovery(cls, args):
+        discovery = {'data': []}
+        try:
+            data = []
+            for scsi_device in os.listdir(cls.SYSFS_SCSI):
+                device_path = os.path.join(cls.SYSFS_SCSI, scsi_device)
+                block_path = os.path.join(device_path, 'block')
+                model_path = os.path.join(device_path, 'model')
+                vendor_path = os.path.join(device_path, 'vendor')
+                if not os.path.isdir(block_path):
+                    continue
+                with open(model_path, 'r') as f1, open(vendor_path, 'r') as f2:
+                    model = f1.read().strip()
+                    vendor = f2.read().strip()
+                if (vendor, model) in cls.DEVICES:
+                    device = os.path.join('/dev', os.listdir(block_path)[0])
+                    item = {'{#HP_DEVICE}': device}
+                    data.append(item)
+                    break
+            discovery['data'] = data
+        except Exception as e:
+            if args.debug:
+                raise e
+        return json.dumps(discovery, separators=(',', ':'))
+
+    @classmethod
+    def status(cls, args):
+        status = 'OK'
+        try:
+            command = [cls.CCISS_VOL_STATUS, args.device]
+            output = subprocess.check_output(command, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            status = e.output.strip()
+        return status
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d', '--debug', action='store_true')
+
+    subparsers = parser.add_subparsers()
+
+    subparser_a = subparsers.add_parser('discovery')
+    subparser_a.set_defaults(func=CCISS.discovery)
+
+    subparser_b = subparsers.add_parser('status')
+    subparser_b.add_argument('device')
+    subparser_b.set_defaults(func=CCISS.status)
+
+    return parser.parse_known_args()[0]
+
+
+def main():
+    args = parse_args()
+    try:
+        print(args.func(args))
+    except Exception as e:
+        if args.debug:
+            raise e
+        print(e)
+
+
+if __name__ == '__main__':
+    main()
