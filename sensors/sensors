@@ -1,0 +1,73 @@
+#!/usr/bin/python
+
+"""sensors
+
+sensors is a Python script for Zabbix low-level discovery of sensors.
+
+The information regarding sensors available on the host can be acquired using
+sensors-detect and sensors tools from lm-sensors package.
+
+Add the following line to Zabbix Agent configuration file:
+    UserParameter=sensors.discovery[*],/path/to/sensors '$1'
+"""
+
+import argparse
+import json
+
+import sensors
+
+__author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
+__date__ = '7 Dec 2015'
+__version__ = '1.1.0'
+
+
+class LMSensors(object):
+
+    @classmethod
+    def discovery(cls, args):
+        discovery = {'data': []}
+        try:
+            data = []
+            sensors.init()
+            for chip in sensors.iter_detected_chips():
+                for feature in chip:
+                    if int(args.sensor_type) != int(feature.type):
+                        continue
+                    item = {
+                        '{#SENS_CHIP}': str(chip),
+                        '{#SENS_NAME}': str(feature.name),
+                        '{#SENS_LABEL}': str(feature.label)
+                    }
+                    for subfeature in feature:
+                        macros = '{#SENS%s}' % (
+                            subfeature.name[len(feature.name):].upper()
+                        )
+                        item[macros] = str(subfeature.get_value())
+                    data.append(item)
+            discovery['data'] = data
+        except Exception as e:
+            if args.debug:
+                raise e
+        return json.dumps(discovery, separators=(',', ':'))
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('sensor_type')
+    parser.set_defaults(func=LMSensors.discovery)
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    try:
+        print(args.func(args))
+    except Exception as e:
+        if args.debug:
+            raise e
+        print(e)
+
+
+if __name__ == '__main__':
+    main()
