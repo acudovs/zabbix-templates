@@ -1,3 +1,3 @@
-# Template App DRBD - Zabbix DRBD status monitoring
+# *drbd*. Template App DRBD - DRBD devices monitoring
 
-Template App DRBD is Zabbix template for monitoring DRBD status.
+Template App DRBD is Zabbix template for monitoring of DRBD devices.

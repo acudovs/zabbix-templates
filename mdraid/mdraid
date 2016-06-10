@@ -1,0 +1,54 @@
+#!/usr/bin/python
+
+import argparse
+import json
+import os
+
+__author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
+__date__ = '31 Dec 2015'
+__version__ = '1.0.1'
+
+
+class MDRAID(object):
+
+    SYSFS_BLOCK = '/sys/block'
+
+    @classmethod
+    def discovery(cls, args):
+        discovery = {'data': []}
+        try:
+            data = []
+            for md_device in os.listdir(cls.SYSFS_BLOCK):
+                md_path = os.path.join(cls.SYSFS_BLOCK, md_device, 'md')
+                if not os.path.isdir(md_path):
+                    continue
+                with open(os.path.join(md_path, 'level'), 'r') as f:
+                    md_level = f.read().strip()
+                item = {'{#MD_DEVICE}': md_device, '{#MD_LEVEL}': md_level}
+                data.append(item)
+            discovery['data'] = data
+        except Exception as e:
+            if args.debug:
+                raise e
+        return json.dumps(discovery, separators=(',', ':'))
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d', '--debug', action='store_true')
+    parser.set_defaults(func=MDRAID.discovery)
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    try:
+        print(args.func(args))
+    except Exception as e:
+        if args.debug:
+            raise e
+        print(e)
+
+
+if __name__ == '__main__':
+    main()

@@ -1,4 +1,4 @@
-# Template Diskstats Linux - Zabbix iostat
+# *diskstats*. Template Diskstats Linux - iostat
 
 Template Diskstats Linux is Zabbix template for graphing disk I/O statistics
 similar to well known iostat utility using only Zabbix agent and Calculated

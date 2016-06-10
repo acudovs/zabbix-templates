@@ -1,7 +1,8 @@
 # zabbix-templates
 
-* Template Diskstats Linux - Zabbix iostat
-* Template App DRBD - Zabbix DRBD status monitoring
-* Template App Pacemaker - Zabbix Pacemaker resources monitoring
-* Template LVM - Zabbix LVM thin pools monitoring
-* Template HP Smart Array - Zabbix HP Smart Array status monitoring
+* *ccicc*. Template HP Smart Array - HP Smart Array status monitoring
+* *diskstats*. Template Diskstats Linux - iostat
+* *drbd*. Template App DRBD - DRBD devices monitoring
+* *lvm*. Template LVM - LVM thin pools monitoring
+* *mdraid*. Template MD Software RAID - MD Software RAID status monitoring
+* *pacemaker*. Template App Pacemaker - Pacemaker resources monitoring
