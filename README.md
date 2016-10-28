@@ -6,4 +6,5 @@
 * *lvm*. Template LVM - LVM thin pools monitoring.
 * *mdraid*. Template MD Software RAID - MD Software RAID status monitoring.
 * *pacemaker*. Template App Pacemaker - Pacemaker resources monitoring.
+* *selinux*. Template SELinux - SELinux monitoring.
 * *sensors*. Template LM Sensors - LM Sensors monitoring.
