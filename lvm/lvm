@@ -6,8 +6,8 @@ import json
 import lvm
 
 __author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
-__date__ = '4 Jun 2016'
-__version__ = '1.0.0'
+__date__ = '7 Nov 2016'
+__version__ = '1.0.1'
 
 
 class LVM(object):
@@ -31,9 +31,9 @@ class LVM(object):
                                 '{#LVM_LV}': lv.getName()}
                         data.append(item)
             discovery['data'] = data
-        except Exception as e:
+        except Exception:
             if args.debug:
-                raise e
+                raise
         return json.dumps(discovery, separators=(',', ':'))
 
     @classmethod
@@ -43,9 +43,9 @@ class LVM(object):
             vg = lvm.vgOpen(args.vg_name, 'r')
             lv = vg.lvFromName(args.lv_name)
             status = lv.getProperty(args.property)[0] / 1000000.0
-        except Exception as e:
+        except Exception:
             if args.debug:
-                raise e
+                raise
         return status
 
 
@@ -79,7 +79,7 @@ def main():
         print(args.func(args))
     except Exception as e:
         if args.debug:
-            raise e
+            raise
         print(e)
 
 

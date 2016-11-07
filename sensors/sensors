@@ -17,8 +17,8 @@ import json
 import sensors
 
 __author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
-__date__ = '7 Dec 2015'
-__version__ = '1.1.0'
+__date__ = '7 Nov 2016'
+__version__ = '1.1.1'
 
 
 class LMSensors(object):
@@ -45,9 +45,9 @@ class LMSensors(object):
                         item[macros] = str(subfeature.get_value())
                     data.append(item)
             discovery['data'] = data
-        except Exception as e:
+        except Exception:
             if args.debug:
-                raise e
+                raise
         return json.dumps(discovery, separators=(',', ':'))
 
 
@@ -65,7 +65,7 @@ def main():
         print(args.func(args))
     except Exception as e:
         if args.debug:
-            raise e
+            raise
         print(e)
 
 

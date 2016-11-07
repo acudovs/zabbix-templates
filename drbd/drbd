@@ -4,8 +4,8 @@ import argparse
 import json
 
 __author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
-__date__ = '4 Jun 2016'
-__version__ = '1.0.3'
+__date__ = '7 Jun 2016'
+__version__ = '1.0.4'
 
 
 class DRBD(object):
@@ -27,9 +27,9 @@ class DRBD(object):
                         item = {'{#DRBD_MINOR}': words[0][:-1]}
                         data.append(item)
             discovery['data'] = data
-        except Exception as e:
+        except Exception:
             if args.debug:
-                raise e
+                raise
         return json.dumps(discovery, separators=(',', ':'))
 
     @classmethod
@@ -41,9 +41,9 @@ class DRBD(object):
                     words = line.split()
                     if len(words) == 6 and words[0][:-1] == args.drbd_minor:
                         status = words[position][3:]
-        except Exception as e:
+        except Exception:
             if args.debug:
-                raise e
+                raise
         return status
 
     @classmethod
@@ -89,7 +89,7 @@ def main():
         print(args.func(args))
     except Exception as e:
         if args.debug:
-            raise e
+            raise
         print(e)
 
 

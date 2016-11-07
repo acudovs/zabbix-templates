@@ -5,8 +5,8 @@ import json
 import subprocess
 
 __author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
-__date__ = '4 Jun 2016'
-__version__ = '1.0.3'
+__date__ = '7 Nov 2016'
+__version__ = '1.0.4'
 
 
 class Pacemaker(object):
@@ -24,9 +24,9 @@ class Pacemaker(object):
                 item = {'{#CRM_RESOURCE}': line}
                 data.append(item)
             discovery['data'] = data
-        except Exception as e:
+        except Exception:
             if args.debug:
-                raise e
+                raise
         return json.dumps(discovery, separators=(',', ':'))
 
     @classmethod
@@ -36,9 +36,9 @@ class Pacemaker(object):
             command = [cls.CRM_RESOURCE, '-r', args.crm_resource, '-W']
             output = subprocess.check_output(command, stderr=subprocess.STDOUT)
             location = output.splitlines()[0]
-        except Exception as e:
+        except Exception:
             if args.debug:
-                raise e
+                raise
         return location
 
 
@@ -64,7 +64,7 @@ def main():
         print(args.func(args))
     except Exception as e:
         if args.debug:
-            raise e
+            raise
         print(e)
 
 

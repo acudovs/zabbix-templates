@@ -6,8 +6,8 @@ import os
 import subprocess
 
 __author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
-__date__ = '1 Jan 2016'
-__version__ = '1.0.0'
+__date__ = '7 Nov 2016'
+__version__ = '1.0.1'
 
 
 class CCISS(object):
@@ -37,9 +37,9 @@ class CCISS(object):
                     data.append(item)
                     break
             discovery['data'] = data
-        except Exception as e:
+        except Exception:
             if args.debug:
-                raise e
+                raise
         return json.dumps(discovery, separators=(',', ':'))
 
     @classmethod
@@ -75,7 +75,7 @@ def main():
         print(args.func(args))
     except Exception as e:
         if args.debug:
-            raise e
+            raise
         print(e)
 
 
