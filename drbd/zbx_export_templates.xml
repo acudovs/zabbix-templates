@@ -9,8 +9,8 @@
     </groups>
     <templates>
         <template>
-            <template>Template App DRBD</template>
-            <name>Template App DRBD</name>
+            <template>Template DRBD</template>
+            <name>Template DRBD</name>
             <groups>
                 <group>
                     <name>Templates</name>
@@ -184,7 +184,7 @@
                     </item_prototypes>
                     <trigger_prototypes>
                         <trigger_prototype>
-                            <expression>{Template App DRBD:drbd[conn,{#DRBD_MINOR}].regexp(&quot;^Connected$&quot;)}=0</expression>
+                            <expression>{Template DRBD:drbd[conn,{#DRBD_MINOR}].regexp(&quot;^Connected$&quot;)}=0</expression>
                             <name>DRBD {#DRBD_MINOR} is not Connected on {HOST.NAME}</name>
                             <url/>
                             <status>0</status>
@@ -193,7 +193,7 @@
                             <type>0</type>
                         </trigger_prototype>
                         <trigger_prototype>
-                            <expression>{Template App DRBD:drbd[disk,{#DRBD_MINOR}].regexp(&quot;^UpToDate&quot;)}=0</expression>
+                            <expression>{Template DRBD:drbd[disk,{#DRBD_MINOR}].regexp(&quot;^UpToDate&quot;)}=0</expression>
                             <name>DRBD {#DRBD_MINOR} is not UpToDate on {HOST.NAME}</name>
                             <url/>
                             <status>0</status>
@@ -202,7 +202,7 @@
                             <type>0</type>
                         </trigger_prototype>
                         <trigger_prototype>
-                            <expression>{Template App DRBD:drbd[role,{#DRBD_MINOR}].str(&quot;Primary&quot;)}=0</expression>
+                            <expression>{Template DRBD:drbd[role,{#DRBD_MINOR}].str(&quot;Primary&quot;)}=0</expression>
                             <name>DRBD {#DRBD_MINOR} missing Primary role on {HOST.NAME}</name>
                             <url/>
                             <status>0</status>
@@ -211,7 +211,7 @@
                             <type>0</type>
                         </trigger_prototype>
                         <trigger_prototype>
-                            <expression>{Template App DRBD:drbd[role,{#DRBD_MINOR}].change()}=1</expression>
+                            <expression>{Template DRBD:drbd[role,{#DRBD_MINOR}].change()}=1</expression>
                             <name>DRBD {#DRBD_MINOR} role changed on {HOST.NAME}</name>
                             <url/>
                             <status>0</status>
