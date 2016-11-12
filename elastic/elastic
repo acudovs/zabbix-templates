@@ -1,0 +1,271 @@
+#!/usr/bin/python
+
+from __future__ import print_function
+
+import argparse
+import json
+import inspect
+import pprint
+import sys
+
+from elasticsearch import Elasticsearch
+from elasticsearch.client.utils import NamespacedClient
+
+__author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
+__date__ = '12 Nov 2016'
+__version__ = '1.0.0'
+
+USAGE = """usage examples:
+    elastic --help
+
+    elastic localhost:9200 /
+    elastic localhost:9200 /discovery
+    elastic localhost:9200 /discovery/cluster
+    elastic localhost:9200 /discovery/nodes
+    elastic localhost:9200 /cat
+    elastic localhost:9200 /cat/master
+    elastic localhost:9200 /cluster
+    elastic localhost:9200 /cluster/health
+    elastic localhost:9200 /cluster/health/status
+    elastic localhost:9200 /cluster/health/status -d
+    elastic localhost:9200 /cluster/health/status level=shards -d
+
+    elastic localhost:9200,localhost:9201,localhost:9202 /
+"""
+
+ES_DEFAULT_RETRIES = 3
+ES_DEFAULT_TIMEOUT = 3
+
+
+class ES(object):
+
+    ERROR_VALUE = 'ZBX_NOTSUPPORTED'
+
+    @classmethod
+    def _discovery_cluster(cls, args, es):
+        cluster_health = es.cluster.health()
+        debug('cluster_health', cluster_health, args.debug)
+
+        return [{'{#ES_CLUSTER_NAME}': cluster_health['cluster_name']}]
+
+    @classmethod
+    def _discovery_nodes(cls, args, es):
+        nodes_info = es.nodes.info(metric='process')
+        debug('nodes_info', nodes_info, args.debug)
+
+        data = []
+        for node_id in nodes_info['nodes'].keys():
+            item = {
+                '{#ES_CLUSTER_NAME}': nodes_info['cluster_name'],
+                '{#ES_NODE_ID}': node_id,
+                '{#ES_NODE_NAME}': nodes_info['nodes'][node_id]['name']
+            }
+            data.append(item)
+
+        return data
+
+    @classmethod
+    def _get_discovery(cls, args, es):
+        debug('args', args, args.debug)
+
+        prefix = '_discovery_'
+        values = []
+
+        if is_discovery_root(args.paths):
+            values.extend(get_startswith_strip(cls, is_method, prefix))
+
+        elif cls._get_discovery_method(args.paths, prefix):
+            method = cls._get_discovery_method(args.paths, prefix)
+            discovery = {'data': method(args, es)}
+            values.append(json.dumps(discovery, separators=(',', ':')))
+        else:
+            values.append(cls.ERROR_VALUE)
+
+        return join_string(values)
+
+    @classmethod
+    def _get_discovery_method(cls, paths, prefix):
+        method = None
+        if len(paths) == 2 and hasattr(cls, prefix + paths[1]):
+            method = getattr(cls, prefix + paths[1])
+
+        return method
+
+    @classmethod
+    def _get_attributes(cls, obj, attributes):
+        results = []
+        try:
+            for attr in attributes:
+                if attr == attributes[-1] and is_list(obj):
+                    for obj_elem in obj:
+                        results.append(obj_elem[attr])
+                else:
+                    obj = obj[attr]
+        except (KeyError, TypeError):
+            results.append(cls.ERROR_VALUE)
+
+        if not results:
+            if is_dict(obj):
+                results.extend(obj.keys())
+            elif is_list(obj):
+                results.extend(obj)
+            else:
+                results.append(obj)
+
+        return results
+
+    @classmethod
+    def _get_value(cls, args, objects, attributes):
+        debug('args', args, args.debug)
+        debug('objects', objects, args.debug)
+        debug('attributes', attributes, args.debug)
+
+        obj = objects[-1]
+        values = []
+
+        if is_es(obj) and not attributes:
+            values.append('discovery')
+            values.extend(get_public_members(obj, is_client))
+            values.extend(get_public_members(obj, is_method))
+
+        elif is_client(obj) and not attributes:
+            values.extend(get_public_members(obj, is_method))
+
+        elif is_method(obj):
+            result = obj(**args.params)
+            debug('{}({})'.format(obj, args.params), result, args.debug)
+            values.extend(cls._get_attributes(result, attributes))
+        else:
+            values.append(cls.ERROR_VALUE)
+
+        return join_string(values)
+
+    @classmethod
+    def get_result(cls, args):
+        es = Elasticsearch(args.nodes, timeout=args.timeout,
+                           retry_on_timeout=True, max_retries=args.retries)
+
+        if is_discovery(args.paths):
+            result = cls._get_discovery(args, es)
+        else:
+            objects, attributes = parse_paths(es, args.paths)
+            result = cls._get_value(args, objects, attributes)
+
+        return result
+
+
+def debug(name, value, level):
+    if level:
+        print('{}: '.format(name), file=sys.stderr)
+        pprint.pprint(value, stream=sys.stderr)
+
+
+def get_startswith_strip(obj, predicate, prefix):
+    names = []
+    for name, value in inspect.getmembers(obj, predicate):
+        if name.startswith(prefix):
+            end_of_prefix = len(prefix)
+            names.append(name[end_of_prefix:])
+
+    return names
+
+
+def get_public_members(obj, predicate):
+    names = []
+    for name, values in inspect.getmembers(obj, predicate):
+        if not name.startswith('_'):
+            names.append(name)
+
+    return names
+
+
+def is_client(obj):
+    return isinstance(obj, NamespacedClient)
+
+
+def is_dict(obj):
+    return isinstance(obj, dict)
+
+
+def is_discovery(paths):
+    return len(paths) and paths[0] == 'discovery'
+
+
+def is_discovery_root(paths):
+    return len(paths) == 1
+
+
+def is_es(obj):
+    return isinstance(obj, Elasticsearch)
+
+
+def is_list(obj):
+    return isinstance(obj, list)
+
+
+def is_method(obj):
+    return inspect.ismethod(obj)
+
+
+def join_string(iterable, function=None):
+    return ' '.join(filter(function, map(str, iterable))).strip()
+
+
+def split_params(param, sep=None):
+    try:
+        return dict(param_elem.split(sep) for param_elem in param)
+    except ValueError:
+        return {}
+
+
+def split_string(string, sep=None, function=None):
+    return filter(function, string.split(sep))
+
+
+def parse_paths(es, paths):
+    attributes = []
+    objects = [es]
+
+    for i in range(len(paths)):
+        path = paths[i]
+        if hasattr(objects[-1], path):
+            objects.append(getattr(objects[-1], path))
+        else:
+            attributes.extend(paths[i:])
+            break
+
+    return objects, attributes
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, epilog=USAGE)
+
+    parser.add_argument('-d', '--debug', action='count')
+    parser.add_argument('-r', '--retries', default=ES_DEFAULT_RETRIES, type=int)
+    parser.add_argument('-t', '--timeout', default=ES_DEFAULT_TIMEOUT, type=int)
+    parser.add_argument('node')
+    parser.add_argument('path')
+    parser.add_argument('param', nargs='*')
+    parser.set_defaults(func=ES.get_result)
+
+    args = parser.parse_args()
+    args.nodes = split_string(args.node, ',')
+    args.paths = split_string(args.path, '/')
+    args.params = split_params(args.param, '=')
+
+    return args
+
+
+def main():
+    args = parse_args()
+    try:
+        print(args.func(args))
+    except Exception as e:
+        if args.debug:
+            raise
+        print(e)
+
+
+if __name__ == '__main__':
+    main()
