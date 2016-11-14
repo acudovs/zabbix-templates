@@ -6,14 +6,15 @@ import argparse
 import json
 import inspect
 import pprint
+import socket
 import sys
 
 from elasticsearch import Elasticsearch
 from elasticsearch.client.utils import NamespacedClient
 
 __author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
-__date__ = '12 Nov 2016'
-__version__ = '1.0.0'
+__date__ = '14 Nov 2016'
+__version__ = '1.0.1'
 
 USAGE = """usage examples:
     elastic --help
@@ -43,40 +44,52 @@ class ES(object):
 
     @classmethod
     def _discovery_cluster(cls, args, es):
-        cluster_health = es.cluster.health()
-        debug('cluster_health', cluster_health, args.debug)
+        metric = 'cluster_name'
+        cluster_state = es.cluster.state(metric=metric)
 
-        return [{'{#ES_CLUSTER_NAME}': cluster_health['cluster_name']}]
+        if args.debug:
+            debug_name = '{}(metric={})'.format(es.cluster.state, metric)
+            debug(debug_name, cluster_state)
+
+        data = []
+        if is_node_match(args.params.get('node')):
+            data.append({'{#ES_CLUSTER_NAME}': cluster_state['cluster_name']})
+
+        return data
 
     @classmethod
     def _discovery_nodes(cls, args, es):
-        nodes_info = es.nodes.info(metric='process')
-        debug('nodes_info', nodes_info, args.debug)
+        metric = 'process'
+        nodes_info = es.nodes.info(metric=metric)
+
+        if args.debug:
+            debug_name = '{}(metric={})'.format(es.nodes.info, metric)
+            debug(debug_name, nodes_info)
 
         data = []
         for node_id in nodes_info['nodes'].keys():
-            item = {
-                '{#ES_CLUSTER_NAME}': nodes_info['cluster_name'],
-                '{#ES_NODE_ID}': node_id,
-                '{#ES_NODE_NAME}': nodes_info['nodes'][node_id]['name']
-            }
-            data.append(item)
+            node_name = nodes_info['nodes'][node_id]['name']
+            if is_node_match(args.params.get('node'), node_name):
+                item = {
+                    '{#ES_CLUSTER_NAME}': nodes_info['cluster_name'],
+                    '{#ES_NODE_ID}': node_id,
+                    '{#ES_NODE_NAME}': node_name
+                }
+                data.append(item)
 
         return data
 
     @classmethod
     def _get_discovery(cls, args, es):
-        debug('args', args, args.debug)
-
         prefix = '_discovery_'
+        discovery_method = cls._get_discovery_method(args.paths, prefix)
         values = []
 
         if is_discovery_root(args.paths):
             values.extend(get_startswith_strip(cls, is_method, prefix))
 
-        elif cls._get_discovery_method(args.paths, prefix):
-            method = cls._get_discovery_method(args.paths, prefix)
-            discovery = {'data': method(args, es)}
+        elif discovery_method:
+            discovery = {'data': discovery_method(args, es)}
             values.append(json.dumps(discovery, separators=(',', ':')))
         else:
             values.append(cls.ERROR_VALUE)
@@ -116,10 +129,6 @@ class ES(object):
 
     @classmethod
     def _get_value(cls, args, objects, attributes):
-        debug('args', args, args.debug)
-        debug('objects', objects, args.debug)
-        debug('attributes', attributes, args.debug)
-
         obj = objects[-1]
         values = []
 
@@ -133,7 +142,10 @@ class ES(object):
 
         elif is_method(obj):
             result = obj(**args.params)
-            debug('{}({})'.format(obj, args.params), result, args.debug)
+            if args.debug:
+                debug_name = '{}({})'.format(obj, join_params(args.params))
+                debug(debug_name, result)
+
             values.extend(cls._get_attributes(result, attributes))
         else:
             values.append(cls.ERROR_VALUE)
@@ -149,15 +161,18 @@ class ES(object):
             result = cls._get_discovery(args, es)
         else:
             objects, attributes = parse_paths(es, args.paths)
+            if args.debug:
+                debug('objects', objects)
+                debug('attributes', attributes)
+
             result = cls._get_value(args, objects, attributes)
 
         return result
 
 
-def debug(name, value, level):
-    if level:
-        print('{}: '.format(name), file=sys.stderr)
-        pprint.pprint(value, stream=sys.stderr)
+def debug(name, value):
+    print('{}: '.format(name), file=sys.stderr)
+    pprint.pprint(value, stream=sys.stderr)
 
 
 def get_startswith_strip(obj, predicate, prefix):
@@ -207,15 +222,26 @@ def is_method(obj):
     return inspect.ismethod(obj)
 
 
+def is_node_match(node, name=''):
+    match = True
+    if node == 'local' and name:
+        match = (name == socket.gethostname() or name == socket.getfqdn())
+    elif node:
+        match = (node == socket.gethostname() or node == socket.getfqdn())
+
+    return match
+
+
+def join_params(params):
+    return ', '.join('{}={}'.format(*item) for item in params.items())
+
+
 def join_string(iterable, function=None):
     return ' '.join(filter(function, map(str, iterable))).strip()
 
 
 def split_params(param, sep=None):
-    try:
-        return dict(param_elem.split(sep) for param_elem in param)
-    except ValueError:
-        return {}
+    return dict(p.split(sep) for p in param if len(p.split(sep)) == 2)
 
 
 def split_string(string, sep=None, function=None):
@@ -241,18 +267,22 @@ def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, epilog=USAGE)
 
-    parser.add_argument('-d', '--debug', action='count')
+    parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('-r', '--retries', default=ES_DEFAULT_RETRIES, type=int)
     parser.add_argument('-t', '--timeout', default=ES_DEFAULT_TIMEOUT, type=int)
     parser.add_argument('node')
     parser.add_argument('path')
     parser.add_argument('param', nargs='*')
+
     parser.set_defaults(func=ES.get_result)
 
     args = parser.parse_args()
     args.nodes = split_string(args.node, ',')
     args.paths = split_string(args.path, '/')
     args.params = split_params(args.param, '=')
+
+    if args.debug:
+        debug('args', args)
 
     return args
 

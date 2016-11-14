@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <zabbix_export>
     <version>2.0</version>
-    <date>2016-11-12T13:02:02Z</date>
+    <date>2016-11-14T15:19:43Z</date>
     <groups>
         <group>
             <name>Templates</name>
@@ -53,7 +53,7 @@
                     <description/>
                     <item_prototypes>
                         <item_prototype>
-                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster active primary shards</name>
+                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster health active primary shards</name>
                             <type>0</type>
                             <snmp_community/>
                             <multiplier>0</multiplier>
@@ -96,7 +96,7 @@
                             <logtimefmt/>
                         </item_prototype>
                         <item_prototype>
-                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster active shards</name>
+                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster health active shards</name>
                             <type>0</type>
                             <snmp_community/>
                             <multiplier>0</multiplier>
@@ -139,7 +139,7 @@
                             <logtimefmt/>
                         </item_prototype>
                         <item_prototype>
-                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster delayed unassigned shards</name>
+                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster health delayed unassigned shards</name>
                             <type>0</type>
                             <snmp_community/>
                             <multiplier>0</multiplier>
@@ -182,7 +182,7 @@
                             <logtimefmt/>
                         </item_prototype>
                         <item_prototype>
-                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster initializing shards</name>
+                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster health initializing shards</name>
                             <type>0</type>
                             <snmp_community/>
                             <multiplier>0</multiplier>
@@ -225,7 +225,7 @@
                             <logtimefmt/>
                         </item_prototype>
                         <item_prototype>
-                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster number of data nodes</name>
+                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster health number of data nodes</name>
                             <type>0</type>
                             <snmp_community/>
                             <multiplier>0</multiplier>
@@ -268,7 +268,7 @@
                             <logtimefmt/>
                         </item_prototype>
                         <item_prototype>
-                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster number of in flight fetch</name>
+                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster health number of in flight fetch</name>
                             <type>0</type>
                             <snmp_community/>
                             <multiplier>0</multiplier>
@@ -311,7 +311,7 @@
                             <logtimefmt/>
                         </item_prototype>
                         <item_prototype>
-                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster number of nodes</name>
+                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster health number of nodes</name>
                             <type>0</type>
                             <snmp_community/>
                             <multiplier>0</multiplier>
@@ -354,7 +354,7 @@
                             <logtimefmt/>
                         </item_prototype>
                         <item_prototype>
-                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster number of pending tasks</name>
+                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster health number of pending tasks</name>
                             <type>0</type>
                             <snmp_community/>
                             <multiplier>0</multiplier>
@@ -397,7 +397,7 @@
                             <logtimefmt/>
                         </item_prototype>
                         <item_prototype>
-                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster relocating shards</name>
+                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster health relocating shards</name>
                             <type>0</type>
                             <snmp_community/>
                             <multiplier>0</multiplier>
@@ -440,7 +440,7 @@
                             <logtimefmt/>
                         </item_prototype>
                         <item_prototype>
-                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster status</name>
+                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster health status</name>
                             <type>0</type>
                             <snmp_community/>
                             <multiplier>0</multiplier>
@@ -483,7 +483,7 @@
                             <logtimefmt/>
                         </item_prototype>
                         <item_prototype>
-                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster task max waiting in queue millis</name>
+                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster health task max waiting in queue millis</name>
                             <type>0</type>
                             <snmp_community/>
                             <multiplier>0</multiplier>
@@ -526,7 +526,7 @@
                             <logtimefmt/>
                         </item_prototype>
                         <item_prototype>
-                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster timed out</name>
+                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster health timed out</name>
                             <type>0</type>
                             <snmp_community/>
                             <multiplier>0</multiplier>
@@ -569,7 +569,7 @@
                             <logtimefmt/>
                         </item_prototype>
                         <item_prototype>
-                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster unassigned shards</name>
+                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster health unassigned shards</name>
                             <type>0</type>
                             <snmp_community/>
                             <multiplier>0</multiplier>
@@ -611,8 +611,60 @@
                             <valuemap/>
                             <logtimefmt/>
                         </item_prototype>
+                        <item_prototype>
+                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster state master node</name>
+                            <type>0</type>
+                            <snmp_community/>
+                            <multiplier>0</multiplier>
+                            <snmp_oid/>
+                            <key>elastic[{$ES_NODES}, /cluster/state/master_node, metric=master_node, {#ES_CLUSTER_NAME}]</key>
+                            <delay>60</delay>
+                            <history>7</history>
+                            <trends>365</trends>
+                            <status>0</status>
+                            <value_type>4</value_type>
+                            <allowed_hosts/>
+                            <units/>
+                            <delta>0</delta>
+                            <snmpv3_contextname/>
+                            <snmpv3_securityname/>
+                            <snmpv3_securitylevel>0</snmpv3_securitylevel>
+                            <snmpv3_authprotocol>0</snmpv3_authprotocol>
+                            <snmpv3_authpassphrase/>
+                            <snmpv3_privprotocol>0</snmpv3_privprotocol>
+                            <snmpv3_privpassphrase/>
+                            <formula>1</formula>
+                            <delay_flex/>
+                            <params/>
+                            <ipmi_sensor/>
+                            <data_type>0</data_type>
+                            <authtype>0</authtype>
+                            <username/>
+                            <password/>
+                            <publickey/>
+                            <privatekey/>
+                            <port/>
+                            <description/>
+                            <inventory_link>0</inventory_link>
+                            <applications>
+                                <application>
+                                    <name>Elasticsearch</name>
+                                </application>
+                            </applications>
+                            <valuemap/>
+                            <logtimefmt/>
+                        </item_prototype>
                     </item_prototypes>
                     <trigger_prototypes>
+                        <trigger_prototype>
+                            <expression>{Template App Elasticsearch:elastic[{$ES_NODES}, /cluster/state/master_node, metric=master_node, {#ES_CLUSTER_NAME}].diff(0)}=1</expression>
+                            <name>Elasticsearch {#ES_CLUSTER_NAME} cluster master node has just been changed on {HOST.NAME}</name>
+                            <url/>
+                            <status>0</status>
+                            <priority>4</priority>
+                            <description/>
+                            <type>0</type>
+                        </trigger_prototype>
                         <trigger_prototype>
                             <expression>{Template App Elasticsearch:elastic[{$ES_NODES}, /cluster/health/status, {#ES_CLUSTER_NAME}].str(&quot;red&quot;)}=1</expression>
                             <name>Elasticsearch {#ES_CLUSTER_NAME} cluster status is red on {HOST.NAME}</name>
@@ -1372,7 +1424,7 @@
                     </item_prototypes>
                     <trigger_prototypes>
                         <trigger_prototype>
-                            <expression>{Template App Elasticsearch:elastic[{$ES_NODES}, /nodes/info/nodes/{#ES_NODE_ID}/jvm/pid, node_id={#ES_NODE_ID}, metric=jvm].delta(#10)}&gt;0</expression>
+                            <expression>{Template App Elasticsearch:elastic[{$ES_NODES}, /nodes/info/nodes/{#ES_NODE_ID}/jvm/pid, node_id={#ES_NODE_ID}, metric=jvm].diff(0)}=1</expression>
                             <name>Elasticsearch {#ES_CLUSTER_NAME} cluster node {#ES_NODE_NAME} jvm has just been restarted</name>
                             <url/>
                             <status>0</status>
