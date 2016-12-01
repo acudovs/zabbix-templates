@@ -1,0 +1,164 @@
+#!/usr/bin/python
+
+from __future__ import print_function
+
+import argparse
+import pprint
+import sys
+
+import requests
+import requests.adapters
+import requests.auth
+
+__author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
+__date__ = '1 Dec 2016'
+__version__ = '1.0.0'
+
+USAGE = """usage examples:
+    graylog --help
+
+    graylog /system
+    graylog /system cluster_id
+    graylog /system cluster_id -d
+
+    graylog /system/metrics
+    graylog /system/metrics gauges:org.graylog2.buffers.input.usage:value
+    graylog /system/metrics/org.graylog2.buffers.input.usage value
+"""
+
+DEFAULT = {
+    'debug': False,
+    'rest_uri': 'http://127.0.0.1:9000/api',
+    'username_header': 'X-Remote-User',
+    'username': 'admin',
+    'password': '',
+    'retries': 1,
+    'timeout': 3,
+    'verify': True
+}
+
+
+class GraylogAuth(requests.auth.HTTPBasicAuth):
+
+    def __init__(self, args):
+        super(GraylogAuth, self).__init__(args.username, args.password)
+        self.username_header = args.username_header
+
+    def __call__(self, request):
+        if self.username and self.password:
+            super(GraylogAuth, self).__call__(request)
+
+        elif self.username:
+            request.headers[self.username_header] = self.username
+
+        return request
+
+
+class GraylogZBX(object):
+
+    ERROR_VALUE = 'ZBX_NOTSUPPORTED'
+
+    def __init__(self, args):
+        self.args = args
+
+    def __call__(self):
+        response = self._get_response()
+        response.raise_for_status()
+        return self._get_result(response)
+
+    def _get_response(self):
+        adapter = requests.adapters.HTTPAdapter(max_retries=self.args.retries)
+        auth = GraylogAuth(self.args)
+
+        with requests.Session() as session:
+            session.mount(self.args.rest_uri, adapter)
+            response = session.get(
+                self.args.rest_uri + self.args.path,
+                auth=auth,
+                timeout=self.args.timeout,
+                verify=self.args.verify
+            )
+
+        if self.args.debug:
+            debug('response', response.__getstate__())
+
+        return response
+
+    def _get_result(self, response):
+        try:
+            obj = response.json()
+        except ValueError:
+            obj = response.text
+
+        results = []
+        try:
+            for param in self.args.params:
+                if param == self.args.params[-1] and isinstance(obj, list):
+                    for elem in obj:
+                        results.append(elem[param])
+                else:
+                    obj = obj[param]
+        except (KeyError, TypeError):
+            results.append(self.ERROR_VALUE)
+
+        if not results:
+            if isinstance(obj, dict):
+                results.extend(obj.keys())
+            elif isinstance(obj, list):
+                results.extend(obj)
+            else:
+                results.append(obj)
+
+        return join_string(results)
+
+
+def debug(name, value):
+    print('{}: '.format(name), file=sys.stderr)
+    pprint.pprint(value, stream=sys.stderr)
+
+
+def join_string(iterable, function=None):
+    return ' '.join(filter(function, map(str, iterable))).strip()
+
+
+def split_string(string, sep=None, function=None):
+    return filter(function, string.split(sep))
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, epilog=USAGE)
+
+    parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('-i', '--rest-uri')
+    parser.add_argument('-a', '--username-header')
+    parser.add_argument('-u', '--username')
+    parser.add_argument('-p', '--password')
+    parser.add_argument('-r', '--retries', type=int)
+    parser.add_argument('-t', '--timeout', type=int)
+    parser.add_argument('-k', '--insecure', action='store_false', dest='verify')
+    parser.add_argument('path')
+    parser.add_argument('param', nargs='?', default='')
+
+    args = parser.parse_args(namespace=argparse.Namespace(**DEFAULT))
+    args.params = split_string(args.param, ':')
+    args.zabbix_get = GraylogZBX(args)
+
+    if args.debug:
+        debug('args', args)
+
+    return args
+
+
+def main():
+    args = parse_args()
+    try:
+        print(args.zabbix_get())
+    except Exception as e:
+        if args.debug:
+            raise
+        print(e)
+
+
+if __name__ == '__main__':
+    main()
