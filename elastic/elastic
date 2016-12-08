@@ -13,8 +13,8 @@ from elasticsearch import Elasticsearch
 from elasticsearch.client.utils import NamespacedClient
 
 __author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
-__date__ = '14 Nov 2016'
-__version__ = '1.0.1'
+__date__ = '8 Dec 2016'
+__version__ = '1.0.2'
 
 USAGE = """usage examples:
     elastic --help
@@ -34,42 +34,64 @@ USAGE = """usage examples:
     elastic localhost:9200,localhost:9201,localhost:9202 /
 """
 
-ES_DEFAULT_RETRIES = 3
+ES_DEFAULT_RETRIES = 1
 ES_DEFAULT_TIMEOUT = 3
 
 
-class ES(object):
+class ElasticZBX(object):
 
     ERROR_VALUE = 'ZBX_NOTSUPPORTED'
 
-    @classmethod
-    def _discovery_cluster(cls, args, es):
-        metric = 'cluster_name'
-        cluster_state = es.cluster.state(metric=metric)
+    def __init__(self, args):
+        self.args = args
+        self.es = Elasticsearch(args.nodes, timeout=args.timeout,
+                                retry_on_timeout=True, max_retries=args.retries)
 
-        if args.debug:
-            debug_name = '{}(metric={})'.format(es.cluster.state, metric)
+    def __call__(self):
+        if self._is_discovery():
+            result = self._get_discovery()
+        else:
+            objects, attributes = self._parse_paths()
+            if self.args.debug:
+                debug('objects', objects)
+                debug('attributes', attributes)
+            result = self._get_value(objects, attributes)
+
+        return result
+
+    def _get_discovery(self, method_prefix='_discovery_'):
+        result = []
+        method_name = method_prefix + self.args.paths[-1]
+        if self._is_discovery_root():
+            result.extend(get_startswith_strip(self, is_method, method_prefix))
+        elif hasattr(self, method_name):
+            discovery = {'data': getattr(self, method_name)()}
+            result.append(json.dumps(discovery, separators=(',', ':')))
+        else:
+            result.append(self.ERROR_VALUE)
+
+        return join_string(result)
+
+    def _discovery_cluster(self, metric='cluster_name'):
+        cluster_state = self.es.cluster.state(metric)
+        if self.args.debug:
+            debug_name = '{}(metric={})'.format(self.es.cluster.state, metric)
             debug(debug_name, cluster_state)
-
         data = []
-        if is_node_match(args.params.get('node')):
-            data.append({'{#ES_CLUSTER_NAME}': cluster_state['cluster_name']})
+        if self._is_node_match():
+            data.append({'{#ES_CLUSTER_NAME}': cluster_state[metric]})
 
         return data
 
-    @classmethod
-    def _discovery_nodes(cls, args, es):
-        metric = 'process'
-        nodes_info = es.nodes.info(metric=metric)
-
-        if args.debug:
-            debug_name = '{}(metric={})'.format(es.nodes.info, metric)
+    def _discovery_nodes(self, metric='process'):
+        nodes_info = self.es.nodes.info(metric)
+        if self.args.debug:
+            debug_name = '{}(metric={})'.format(self.es.nodes.info, metric)
             debug(debug_name, nodes_info)
-
         data = []
         for node_id in nodes_info['nodes'].keys():
             node_name = nodes_info['nodes'][node_id]['name']
-            if is_node_match(args.params.get('node'), node_name):
+            if self._is_node_match(node_name):
                 item = {
                     '{#ES_CLUSTER_NAME}': nodes_info['cluster_name'],
                     '{#ES_NODE_ID}': node_id,
@@ -79,56 +101,35 @@ class ES(object):
 
         return data
 
-    @classmethod
-    def _get_discovery(cls, args, es):
-        prefix = '_discovery_'
-        discovery_method = cls._get_discovery_method(args.paths, prefix)
-        values = []
+    def _is_discovery(self):
+        return len(self.args.paths) and self.args.paths[0] == 'discovery'
 
-        if is_discovery_root(args.paths):
-            values.extend(get_startswith_strip(cls, is_method, prefix))
+    def _is_discovery_root(self):
+        return len(self.args.paths) == 1 and self.args.paths[0] == 'discovery'
 
-        elif discovery_method:
-            discovery = {'data': discovery_method(args, es)}
-            values.append(json.dumps(discovery, separators=(',', ':')))
-        else:
-            values.append(cls.ERROR_VALUE)
+    def _is_node_match(self, name='', match=True):
+        node = self.args.params.get('node')
+        if node == 'local' and name:
+            match = (name == socket.gethostname() or name == socket.getfqdn())
+        elif node:
+            match = (node == socket.gethostname() or node == socket.getfqdn())
 
-        return join_string(values)
+        return match
 
-    @classmethod
-    def _get_discovery_method(cls, paths, prefix):
-        method = None
-        if len(paths) == 2 and hasattr(cls, prefix + paths[1]):
-            method = getattr(cls, prefix + paths[1])
-
-        return method
-
-    @classmethod
-    def _get_attributes(cls, obj, attributes):
-        results = []
-        try:
-            for attr in attributes:
-                if attr == attributes[-1] and is_list(obj):
-                    for obj_elem in obj:
-                        results.append(obj_elem[attr])
-                else:
-                    obj = obj[attr]
-        except (KeyError, TypeError):
-            results.append(cls.ERROR_VALUE)
-
-        if not results:
-            if is_dict(obj):
-                results.extend(obj.keys())
-            elif is_list(obj):
-                results.extend(obj)
+    def _parse_paths(self):
+        attributes = []
+        objects = [self.es]
+        for i in range(len(self.args.paths)):
+            path = self.args.paths[i]
+            if hasattr(objects[-1], path):
+                objects.append(getattr(objects[-1], path))
             else:
-                results.append(obj)
+                attributes.extend(self.args.paths[i:])
+                break
 
-        return results
+        return objects, attributes
 
-    @classmethod
-    def _get_value(cls, args, objects, attributes):
+    def _get_value(self, objects, attributes):
         obj = objects[-1]
         values = []
 
@@ -141,33 +142,38 @@ class ES(object):
             values.extend(get_public_members(obj, is_method))
 
         elif is_method(obj):
-            result = obj(**args.params)
-            if args.debug:
-                debug_name = '{}({})'.format(obj, join_params(args.params))
+            result = obj(**self.args.params)
+            if self.args.debug:
+                debug_name = '{}({})'.format(obj, join_params(self.args.params))
                 debug(debug_name, result)
 
-            values.extend(cls._get_attributes(result, attributes))
+            values.extend(self._get_attributes(result, attributes))
         else:
-            values.append(cls.ERROR_VALUE)
+            values.append(self.ERROR_VALUE)
 
         return join_string(values)
 
-    @classmethod
-    def get_result(cls, args):
-        es = Elasticsearch(args.nodes, timeout=args.timeout,
-                           retry_on_timeout=True, max_retries=args.retries)
+    def _get_attributes(self, obj, attributes):
+        results = []
+        try:
+            for attr in attributes:
+                if attr == attributes[-1] and is_list(obj):
+                    for obj_elem in obj:
+                        results.append(obj_elem[attr])
+                else:
+                    obj = obj[attr]
+        except (KeyError, TypeError):
+            results.append(self.ERROR_VALUE)
 
-        if is_discovery(args.paths):
-            result = cls._get_discovery(args, es)
-        else:
-            objects, attributes = parse_paths(es, args.paths)
-            if args.debug:
-                debug('objects', objects)
-                debug('attributes', attributes)
+        if not results:
+            if is_dict(obj):
+                results.extend(obj.keys())
+            elif is_list(obj):
+                results.extend(obj)
+            else:
+                results.append(obj)
 
-            result = cls._get_value(args, objects, attributes)
-
-        return result
+        return results
 
 
 def debug(name, value):
@@ -202,14 +208,6 @@ def is_dict(obj):
     return isinstance(obj, dict)
 
 
-def is_discovery(paths):
-    return len(paths) and paths[0] == 'discovery'
-
-
-def is_discovery_root(paths):
-    return len(paths) == 1
-
-
 def is_es(obj):
     return isinstance(obj, Elasticsearch)
 
@@ -220,16 +218,6 @@ def is_list(obj):
 
 def is_method(obj):
     return inspect.ismethod(obj)
-
-
-def is_node_match(node, name=''):
-    match = True
-    if node == 'local' and name:
-        match = (name == socket.gethostname() or name == socket.getfqdn())
-    elif node:
-        match = (node == socket.gethostname() or node == socket.getfqdn())
-
-    return match
 
 
 def join_params(params):
@@ -248,21 +236,6 @@ def split_string(string, sep=None, function=None):
     return filter(function, string.split(sep))
 
 
-def parse_paths(es, paths):
-    attributes = []
-    objects = [es]
-
-    for i in range(len(paths)):
-        path = paths[i]
-        if hasattr(objects[-1], path):
-            objects.append(getattr(objects[-1], path))
-        else:
-            attributes.extend(paths[i:])
-            break
-
-    return objects, attributes
-
-
 def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, epilog=USAGE)
@@ -274,12 +247,11 @@ def parse_args():
     parser.add_argument('path')
     parser.add_argument('param', nargs='*')
 
-    parser.set_defaults(func=ES.get_result)
-
     args = parser.parse_args()
     args.nodes = split_string(args.node, ',')
     args.paths = split_string(args.path, '/')
     args.params = split_params(args.param, '=')
+    args.zabbix_get = ElasticZBX(args)
 
     if args.debug:
         debug('args', args)
@@ -290,7 +262,7 @@ def parse_args():
 def main():
     args = parse_args()
     try:
-        print(args.func(args))
+        print(args.zabbix_get())
     except Exception as e:
         if args.debug:
             raise
