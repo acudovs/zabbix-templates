@@ -13,8 +13,8 @@ from elasticsearch import Elasticsearch
 from elasticsearch.client.utils import NamespacedClient
 
 __author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
-__date__ = '8 Dec 2016'
-__version__ = '1.0.2'
+__date__ = '10 Dec 2016'
+__version__ = '1.0.3'
 
 USAGE = """usage examples:
     elastic --help
@@ -75,7 +75,7 @@ class ElasticZBX(object):
     def _discovery_cluster(self, metric='cluster_name'):
         cluster_state = self.es.cluster.state(metric)
         if self.args.debug:
-            debug_name = '{}(metric={})'.format(self.es.cluster.state, metric)
+            debug_name = '{0}(metric={1})'.format(self.es.cluster.state, metric)
             debug(debug_name, cluster_state)
         data = []
         if self._is_node_match():
@@ -86,7 +86,7 @@ class ElasticZBX(object):
     def _discovery_nodes(self, metric='process'):
         nodes_info = self.es.nodes.info(metric)
         if self.args.debug:
-            debug_name = '{}(metric={})'.format(self.es.nodes.info, metric)
+            debug_name = '{0}(metric={1})'.format(self.es.nodes.info, metric)
             debug(debug_name, nodes_info)
         data = []
         for node_id in nodes_info['nodes'].keys():
@@ -144,7 +144,7 @@ class ElasticZBX(object):
         elif is_method(obj):
             result = obj(**self.args.params)
             if self.args.debug:
-                debug_name = '{}({})'.format(obj, join_params(self.args.params))
+                debug_name = '{0}({1})'.format(obj, join_params(self.args.params))
                 debug(debug_name, result)
 
             values.extend(self._get_attributes(result, attributes))
@@ -163,7 +163,7 @@ class ElasticZBX(object):
                 else:
                     obj = obj[attr]
         except (KeyError, TypeError):
-            results.append(self.ERROR_VALUE)
+            return self.ERROR_VALUE
 
         if not results:
             if is_dict(obj):
@@ -177,7 +177,7 @@ class ElasticZBX(object):
 
 
 def debug(name, value):
-    print('{}: '.format(name), file=sys.stderr)
+    print('{0}: '.format(name), file=sys.stderr)
     pprint.pprint(value, stream=sys.stderr)
 
 
@@ -221,7 +221,7 @@ def is_method(obj):
 
 
 def join_params(params):
-    return ', '.join('{}={}'.format(*item) for item in params.items())
+    return ', '.join('{0}={1}'.format(*item) for item in params.items())
 
 
 def join_string(iterable, function=None):
