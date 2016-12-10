@@ -99,7 +99,7 @@ class GraylogZBX(object):
                 else:
                     obj = obj[param]
         except (KeyError, TypeError):
-            results.append(self.ERROR_VALUE)
+            return self.ERROR_VALUE
 
         if not results:
             if isinstance(obj, dict):
@@ -113,7 +113,7 @@ class GraylogZBX(object):
 
 
 def debug(name, value):
-    print('{}: '.format(name), file=sys.stderr)
+    print('{0}: '.format(name), file=sys.stderr)
     pprint.pprint(value, stream=sys.stderr)
 
 
