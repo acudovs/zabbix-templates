@@ -6,82 +6,58 @@ import json
 import lvm
 
 __author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
-__date__ = '7 Nov 2016'
-__version__ = '1.0.1'
+__date__ = '27 Dec 2016'
+__version__ = '1.0.2'
 
 
-class LVM(object):
+class LVM2ZBX(object):
+
+    def __init__(self):
+        self._args = self._parse_args()
+        try:
+            print(self._args.method())
+        except Exception as e:
+            if self._args.debug:
+                raise
+            print(e)
+
+    def _parse_args(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('-d', '--debug', action='store_true')
+
+        parent_parser = argparse.ArgumentParser(add_help=False)
+        parent_parser.add_argument('vg_name')
+        parent_parser.add_argument('lv_name')
+
+        subparsers = parser.add_subparsers()
+        subparser = subparsers.add_parser('discovery')
+        subparser.set_defaults(method=self._discovery)
+
+        for name in ['data_percent', 'metadata_percent']:
+            subparser = subparsers.add_parser(name, parents=[parent_parser])
+            subparser.set_defaults(method=self._get_percent, property=name)
+
+        return parser.parse_known_args()[0]
 
     @staticmethod
-    def is_thin_pool(lv):
+    def _is_thin_pool(lv):
         return lv.getProperty('lv_attr')[0][0] == 't'
 
-    @classmethod
-    def discovery(cls, args):
-        discovery = {'data': []}
-        try:
-            data = []
-            vg_names = lvm.listVgNames()
-            for vg_name in vg_names:
-                vg = lvm.vgOpen(vg_name, 'r')
-                lv_list = vg.listLVs()
-                for lv in lv_list:
-                    if cls.is_thin_pool(lv):
-                        item = {'{#LVM_VG}': vg_name,
-                                '{#LVM_LV}': lv.getName()}
-                        data.append(item)
-            discovery['data'] = data
-        except Exception:
-            if args.debug:
-                raise
-        return json.dumps(discovery, separators=(',', ':'))
+    def _discovery(self):
+        data = []
+        for vg_name in lvm.listVgNames():
+            vg = lvm.vgOpen(vg_name)
+            for lv in vg.listLVs():
+                if self._is_thin_pool(lv):
+                    data.append(
+                        {'{#LVM_VG}': vg_name, '{#LVM_LV}': lv.getName()})
+        return json.dumps({'data': data}, separators=(',', ':'))
 
-    @classmethod
-    def get_percent(cls, args):
-        status = 0.0
-        try:
-            vg = lvm.vgOpen(args.vg_name, 'r')
-            lv = vg.lvFromName(args.lv_name)
-            status = lv.getProperty(args.property)[0] / 1000000.0
-        except Exception:
-            if args.debug:
-                raise
-        return status
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-d', '--debug', action='store_true')
-
-    subparsers = parser.add_subparsers()
-
-    subparser_a = subparsers.add_parser('discovery')
-    subparser_a.set_defaults(func=LVM.discovery)
-
-    parent_parser = argparse.ArgumentParser(add_help=False)
-    parent_parser.add_argument('vg_name')
-    parent_parser.add_argument('lv_name')
-
-    subparser_b = subparsers.add_parser(
-        'data_percent', parents=[parent_parser])
-    subparser_b.set_defaults(func=LVM.get_percent, property='data_percent')
-
-    subparser_c = subparsers.add_parser(
-        'metadata_percent', parents=[parent_parser])
-    subparser_c.set_defaults(func=LVM.get_percent, property='metadata_percent')
-
-    return parser.parse_known_args()[0]
-
-
-def main():
-    args = parse_args()
-    try:
-        print(args.func(args))
-    except Exception as e:
-        if args.debug:
-            raise
-        print(e)
+    def _get_percent(self):
+        vg = lvm.vgOpen(self._args.vg_name)
+        lv = vg.lvFromName(self._args.lv_name)
+        return lv.getProperty(self._args.property)[0] / 1000000.0
 
 
 if __name__ == '__main__':
-    main()
+    LVM2ZBX()
