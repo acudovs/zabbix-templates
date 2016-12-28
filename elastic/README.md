@@ -7,7 +7,8 @@ This template discovers and monitors the entire Elasticsearch cluster state and
 all nodes state. To not overwhelm Zabbix database with duplicate data link this
 template to a single host which will monitor the entire cluster or use discovery
 parameter 'node=local' or 'node=HOSTNAME' to create only local node items or
-create items on specified node only.
+create items on specified node only. For node parameter to work node.name in
+elasticsearch.yml should match server hostname or fqdn.
 
 To collect more metrics just create new item prototypes in Zabbix Web UI:
 Templates -> Template App Elasticsearch ->
