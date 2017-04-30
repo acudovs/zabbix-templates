@@ -6,8 +6,8 @@ import json
 import lvm
 
 __author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
-__date__ = '27 Dec 2016'
-__version__ = '1.0.2'
+__date__ = '30 Apr 2017'
+__version__ = '1.0.3'
 
 
 class LVM2ZBX(object):
@@ -51,6 +51,7 @@ class LVM2ZBX(object):
                 if self._is_thin_pool(lv):
                     data.append(
                         {'{#LVM_VG}': vg_name, '{#LVM_LV}': lv.getName()})
+            vg.close()
         return json.dumps({'data': data}, separators=(',', ':'))
 
     def _get_percent(self):
