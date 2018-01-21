@@ -6,50 +6,57 @@ import os
 import subprocess
 
 __author__ = 'Aleksey Chudov <aleksey.chudov@gmail.com>'
-__date__ = '7 Nov 2016'
-__version__ = '1.0.1'
+__date__ = '21 Jan 2018'
+__version__ = '1.0.2'
 
 
 class CCISS(object):
 
     CCISS_VOL_STATUS = '/usr/bin/cciss_vol_status'
-    DEVICES = [('HP', 'LOGICAL VOLUME')]
-    SYSFS_SCSI = '/sys/bus/scsi/devices'
+    HP_DEVICES = (('HP', 'LOGICAL VOLUME'),)
+    SYSFS_BLOCK = '/sys/block'
 
     @classmethod
     def discovery(cls, args):
         discovery = {'data': []}
-        try:
-            data = []
-            for scsi_device in os.listdir(cls.SYSFS_SCSI):
-                device_path = os.path.join(cls.SYSFS_SCSI, scsi_device)
-                block_path = os.path.join(device_path, 'block')
-                model_path = os.path.join(device_path, 'model')
-                vendor_path = os.path.join(device_path, 'vendor')
-                if not os.path.isdir(block_path):
-                    continue
-                with open(model_path, 'r') as f1, open(vendor_path, 'r') as f2:
-                    model = f1.read().strip()
-                    vendor = f2.read().strip()
-                if (vendor, model) in cls.DEVICES:
-                    device = os.path.join('/dev', os.listdir(block_path)[0])
+        for block_dev in os.listdir(cls.SYSFS_BLOCK):
+            block_path = os.path.join(cls.SYSFS_BLOCK, block_dev)
+            model_path = os.path.join(block_path, 'device/model')
+            vendor_path = os.path.join(block_path, 'device/vendor')
+
+            if os.path.isfile(model_path) and os.path.isfile(vendor_path):
+                with open(model_path) as model_f, open(vendor_path) as vendor_f:
+                    model = model_f.read().strip()
+                    vendor = vendor_f.read().strip()
+
+                if (vendor, model) in cls.HP_DEVICES:
+                    device = os.path.join('/dev', block_dev.replace('!', '/'))
                     item = {'{#HP_DEVICE}': device}
-                    data.append(item)
-                    break
-            discovery['data'] = data
-        except Exception:
-            if args.debug:
-                raise
+                    discovery['data'].append(item)
+
         return json.dumps(discovery, separators=(',', ':'))
 
     @classmethod
     def status(cls, args):
-        status = 'OK'
+        status = ''
         try:
-            command = [cls.CCISS_VOL_STATUS, args.device]
+            command = (cls.CCISS_VOL_STATUS, args.device)
             output = subprocess.check_output(command, stderr=subprocess.STDOUT)
+
+            for line in output.splitlines():
+                if line.startswith(args.device + ':'):
+                    if 'OK' in line:
+                        status = 'OK'
+                    else:
+                        status = line
+                    break
+
+            if not status:
+                status = '; '.join(output.strip().splitlines())
+
         except subprocess.CalledProcessError as e:
-            status = e.output.strip()
+            status = '; '.join(e.output.strip().splitlines())
+
         return status
 
 
