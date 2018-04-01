@@ -40,7 +40,7 @@ class CCISS(object):
     def status(cls, args):
         status = ''
         try:
-            command = (cls.CCISS_VOL_STATUS, args.device)
+            command = (cls.CCISS_VOL_STATUS, '-s', args.device)
             output = subprocess.check_output(command, stderr=subprocess.STDOUT)
 
             for line in output.splitlines():
